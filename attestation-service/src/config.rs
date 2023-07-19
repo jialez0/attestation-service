@@ -1,3 +1,4 @@
+use crate::token::{AttestationTokenBrokerType, AttestationTokenConfig};
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -19,6 +20,13 @@ pub struct Config {
     pub policy_engine: String,
 
     pub rvps_store_type: StoreType,
+
+    /// The Attestation Result Token Broker type.
+    ///
+    /// Possible values:
+    /// * `Simple`
+    pub attestation_token_broker: AttestationTokenBrokerType,
+    pub attestation_token_config: AttestationTokenConfig,
 }
 
 impl Default for Config {
@@ -32,6 +40,8 @@ impl Default for Config {
             work_dir,
             policy_engine: "opa".to_string(),
             rvps_store_type: StoreType::LocalFs,
+            attestation_token_broker: AttestationTokenBrokerType::Simple,
+            attestation_token_config: AttestationTokenConfig::default(),
         }
     }
 }
@@ -41,7 +51,11 @@ impl TryFrom<&Path> for Config {
     ///    {
     ///        "work_dir": "/var/lib/attestation-service/",
     ///        "policy_engine": "opa",
-    ///        "rvps_store_type": "LocalFs"
+    ///        "rvps_store_type": "LocalFs",
+    ///        "attestation_token_broker": "Simple",
+    ///        "attestation_token_config": {
+    ///            "duration_min": 5,
+    ///        }
     ///    }
     type Error = anyhow::Error;
     fn try_from(config_path: &Path) -> Result<Self, Self::Error> {
