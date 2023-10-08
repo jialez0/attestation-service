@@ -14,7 +14,7 @@ RUN wget https://go.dev/dl/go1.20.1.linux-amd64.tar.gz && \
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Install TPM Build Dependencies
-RUN apt-get update && apt-get install -y protobuf-compiler clang libtss2-dev
+RUN apt-get update && apt-get install -y protobuf-compiler clang libtss2-dev openssl
 
 # Install TDX Build Dependencies
 RUN curl -L https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | tee intel-sgx-deb.key | apt-key add - && \
@@ -25,12 +25,12 @@ RUN curl -L https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key 
 RUN cargo install --path bin/grpc-as
 
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.source="https://github.com/confidential-containers/attestation-service"
 
 # Install TDX Runtime Dependencies
-RUN apt-get update && apt-get install curl gnupg -y && \
+RUN apt-get update && apt-get install curl gnupg openssl -y && \
     rm -rf /var/lib/apt/lists/{apt,dpkg,cache,log} /tmp/* /var/tmp/*
 
 RUN curl -L https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | tee intel-sgx-deb.key | apt-key add - && \
