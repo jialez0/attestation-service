@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use strum_macros::EnumString;
 
+mod oaas;
 mod simple;
 
 const DEFAULT_TOKEN_TIMEOUT: i64 = 5;
@@ -25,6 +26,7 @@ pub trait AttestationTokenBroker {
 #[derive(Deserialize, Debug, Clone, EnumString)]
 pub enum AttestationTokenBrokerType {
     Simple,
+    Oaas,
 }
 
 impl AttestationTokenBrokerType {
@@ -35,6 +37,10 @@ impl AttestationTokenBrokerType {
         match self {
             AttestationTokenBrokerType::Simple => {
                 Ok(Box::new(simple::SimpleAttestationTokenBroker::new(config)?)
+                    as Box<dyn AttestationTokenBroker + Send + Sync>)
+            }
+            AttestationTokenBrokerType::Oaas => {
+                Ok(Box::new(oaas::OaasAttestationTokenBroker::new(config)?)
                     as Box<dyn AttestationTokenBroker + Send + Sync>)
             }
         }
