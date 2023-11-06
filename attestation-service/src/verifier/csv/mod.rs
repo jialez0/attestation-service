@@ -31,6 +31,12 @@ struct CsvEvidence {
     cert_chain: CertificateChain,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Base64CsvEvidence {
+    pub attestation_report: String,
+    pub cert_chain: String,
+}
+
 pub const HRK: &[u8] = include_bytes!("hrk.cert");
 
 #[derive(Debug, Default)]
@@ -43,8 +49,21 @@ impl Verifier for CsvVerifier {
         nonce: String,
         attestation: &Attestation,
     ) -> Result<TeeEvidenceParsedClaim> {
-        let tee_evidence = serde_json::from_str::<CsvEvidence>(&attestation.tee_evidence)
-            .context("Deserialize Quote failed.")?;
+        let tee_evidence = match serde_json::from_str::<CsvEvidence>(&attestation.tee_evidence) {
+            serde_json::Result::Ok(e) => e,
+            serde_json::Result::Err(_) => {
+                let b64_ev = serde_json::from_str::<Base64CsvEvidence>(&attestation.tee_evidence)
+                    .context("Deserialize Quote failed.")?;
+                let ar =
+                    base64::engine::general_purpose::STANDARD.decode(&b64_ev.attestation_report)?;
+                let cc = base64::engine::general_purpose::STANDARD.decode(&b64_ev.cert_chain)?;
+
+                CsvEvidence {
+                    attestation_report: serde_json::from_slice(&ar)?,
+                    cert_chain: serde_json::from_slice(&cc)?,
+                }
+            }
+        };
 
         verify_report_signature(&tee_evidence)?;
 
@@ -174,6 +193,9 @@ fn parse_tee_evidence(report: &AttestationReport) -> Result<TeeEvidenceParsedCla
 
         // measurement
         "measurement": format!("{}", base64::engine::general_purpose::STANDARD.encode(body.measure)),
+
+        // report data
+        "report_data": format!("{}", base64::engine::general_purpose::STANDARD.encode(body.report_data)),
     });
 
     Ok(claims_map as TeeEvidenceParsedClaim)
