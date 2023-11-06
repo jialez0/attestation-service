@@ -61,6 +61,24 @@ impl Verifier for Snp {
 
         Ok(parse_tee_evidence(&report))
     }
+
+    async fn verify(&self, tee_evidence: String) -> Result<TeeEvidenceParsedClaim> {
+        let tee_evidence = serde_json::from_str::<SnpEvidence>(tee_evidence)
+            .context("Deserialize Quote failed.")?;
+
+        verify_report_signature(&tee_evidence)?;
+
+        let report = tee_evidence.attestation_report;
+        if report.version != 2 {
+            return Err(anyhow!("Unexpected report version"));
+        }
+
+        if report.vmpl != 0 {
+            return Err(anyhow!("VMPL Check Failed"));
+        }
+
+        Ok(parse_tee_evidence(&report))
+    }
 }
 
 fn get_oid_octets<const N: usize>(
