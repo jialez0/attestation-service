@@ -57,6 +57,17 @@ impl Verifier for CsvVerifier {
 
         parse_tee_evidence(&report_raw)
     }
+
+    async fn verify(&self, tee_evidence: String) -> Result<TeeEvidenceParsedClaim> {
+        let tee_evidence = serde_json::from_str::<CsvEvidence>(&tee_evidence)
+            .context("Deserialize Quote failed.")?;
+
+        verify_report_signature(&tee_evidence)?;
+
+        let report_raw = restore_attestation_report(tee_evidence.attestation_report)?;
+
+        parse_tee_evidence(&report_raw)
+    }
 }
 
 fn calculate_expected_report_data(nonce: &String, tee_pubkey: &TeePubKey) -> [u8; 64] {

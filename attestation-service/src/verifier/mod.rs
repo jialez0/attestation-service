@@ -96,4 +96,8 @@ pub trait Verifier {
         nonce: String,
         attestation: &Attestation,
     ) -> Result<TeeEvidenceParsedClaim>;
+
+    async fn verify(&self, _tee_evidence: String) -> Result<TeeEvidenceParsedClaim> {
+        bail!("Unimplemented");
+    }
 }

@@ -41,6 +41,13 @@ impl Verifier for Sample {
 
         parse_tee_evidence(&tee_evidence)
     }
+
+    async fn verify(&self, tee_evidence: String) -> Result<TeeEvidenceParsedClaim> {
+        let tee_evidence = serde_json::from_str::<SampleTeeEvidence>(&tee_evidence)
+            .context("Deserialize Quote failed.")?;
+
+        parse_tee_evidence(&tee_evidence)
+    }
 }
 
 async fn verify_tee_evidence(

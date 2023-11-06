@@ -49,7 +49,16 @@ impl Verifier for Tdx {
             hex::encode(&hash_of_nonce_pubkey)
         );
 
-        verify_evidence(hash_of_nonce_pubkey, &tdx_evidence)
+        verify_evidence(Some(hash_of_nonce_pubkey), &tdx_evidence)
+            .await
+            .map_err(|e| anyhow!("TDX Verifier: {:?}", e))
+    }
+
+    async fn verify(&self, tee_evidence: String) -> Result<TeeEvidenceParsedClaim> {
+        let tdx_evidence = serde_json::from_str::<TdxEvidence>(&tee_evidence)
+            .context("Deserialize TDX Evidence failed.")?;
+
+        verify_evidence(None, &tdx_evidence)
             .await
             .map_err(|e| anyhow!("TDX Verifier: {:?}", e))
     }
@@ -57,7 +66,7 @@ impl Verifier for Tdx {
 
 #[allow(unused_assignments)]
 async fn verify_evidence(
-    hash_of_nonce_pubkey: Vec<u8>,
+    hash_of_nonce_pubkey: Option<Vec<u8>>,
     evidence: &TdxEvidence,
 ) -> Result<TeeEvidenceParsedClaim> {
     // Verify TD quote ECDSA signature.
@@ -69,10 +78,12 @@ async fn verify_evidence(
 
     log::info!("{}\n", &quote);
 
-    if hash_of_nonce_pubkey != quote.report_body.report_data.to_vec() {
-        return Err(anyhow!(
-            "HASH(nonce||pubkey) is different from that in TDX Quote"
-        ));
+    if let Some(hash) = hash_of_nonce_pubkey {
+        if hash != quote.report_body.report_data.to_vec() {
+            return Err(anyhow!(
+                "HASH(nonce||pubkey) is different from that in TDX Quote"
+            ));
+        }
     }
 
     // Verify Integrity of CC Eventlog

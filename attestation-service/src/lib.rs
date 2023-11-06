@@ -145,6 +145,42 @@ impl AttestationService {
         Ok(attestation_results_token)
     }
 
+    pub async fn verify(
+        &self,
+        tee: Tee,
+        evidence: &str,
+        policy_id: Option<String>,
+    ) -> Result<String> {
+        let verifier = crate::verifier::to_verifier(&tee)?;
+        let claims_from_tee_evidence = verifier
+            .verify(evidence.to_string())
+            .await
+            .map_err(|e| anyhow!("Verifier verify failed: {e:?}"))?;
+
+        let flattened_claims = flatten_claims(tee.clone(), &claims_from_tee_evidence)?;
+        let tcb = serde_json::to_string(&flattened_claims)?;
+        let reference_data_map = self
+            .get_reference_data(&tcb)
+            .await
+            .map_err(|e| anyhow!("Generate reference data failed{:?}", e))?;
+
+        // Now only support using default policy to evaluate
+        let evaluation_report = self
+            .policy_engine
+            .evaluate(reference_data_map, tcb.clone(), policy_id.clone())
+            .await
+            .map_err(|e| anyhow!("Policy Engine evaluation failed: {e}"))?;
+
+        let token_claims = json!({
+            "tcb-status": flattened_claims,
+            "evaluation-report": evaluation_report,
+            "policy-id": policy_id.unwrap_or("default".to_string()),
+        });
+        let attestation_results_token = self.token_broker.issue(token_claims)?;
+
+        Ok(attestation_results_token)
+    }
+
     async fn get_reference_data(&self, tcb_claims: &str) -> Result<HashMap<String, Vec<String>>> {
         let mut data = HashMap::new();
         let tcb_claims_map: HashMap<String, String> = serde_json::from_str(tcb_claims)?;

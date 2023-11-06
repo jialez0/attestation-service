@@ -59,7 +59,16 @@ impl Verifier for SgxVerifier {
 
         debug!("TEE-Evidence<Sgx Occlum>: {:?}", &tee_evidence);
 
-        verify_evidence(hash_of_nonce_pubkey, tee_evidence).await
+        verify_evidence(Some(hash_of_nonce_pubkey), tee_evidence).await
+    }
+
+    async fn verify(&self, tee_evidence: String) -> Result<TeeEvidenceParsedClaim> {
+        let tee_evidence = serde_json::from_str::<SgxEvidence>(&tee_evidence)
+            .context("Deserialize Quote failed.")?;
+
+        debug!("TEE-Evidence<Sgx Occlum>: {:?}", &tee_evidence);
+
+        verify_evidence(None, tee_evidence).await
     }
 }
 
@@ -71,7 +80,7 @@ pub fn parse_sgx_quote(quote: &[u8]) -> Result<sgx_quote3_t> {
 }
 
 async fn verify_evidence(
-    hash_of_nonce_pubkey: Vec<u8>,
+    hash_of_nonce_pubkey: Option<Vec<u8>>,
     evidence: SgxEvidence,
 ) -> Result<TeeEvidenceParsedClaim> {
     let quote_bin = base64::engine::general_purpose::STANDARD.decode(evidence.quote.clone())?;
@@ -81,8 +90,10 @@ async fn verify_evidence(
         .context("Evidence's identity verification error.")?;
 
     let quote = parse_sgx_quote(&quote_bin)?;
-    if quote.report_body.report_data.d.to_vec() != hash_of_nonce_pubkey {
-        bail!("HASH(nonce||pubkey) is different from that in SGX Quote");
+    if let Some(hash) = hash_of_nonce_pubkey {
+        if quote.report_body.report_data.d.to_vec() != hash {
+            bail!("HASH(nonce||pubkey) is different from that in SGX Quote");
+        }
     }
 
     generate_parsed_claims(quote)
