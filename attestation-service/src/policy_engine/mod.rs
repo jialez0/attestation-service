@@ -1,9 +1,8 @@
 use anyhow::Result;
 use as_types::SetPolicyInput;
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
 
 pub mod opa;
 
@@ -19,12 +18,19 @@ pub enum PolicyType {
     Rego,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PolicyDigest {
+    pub id: String,
+    pub digest: String,
+}
+
 impl PolicyEngineType {
     #[allow(dead_code)]
-    pub fn to_policy_engine(&self, work_dir: &Path) -> Result<Box<dyn PolicyEngine + Send + Sync>> {
+    pub fn to_policy_engine(&self) -> Result<Box<dyn PolicyEngine + Send + Sync>> {
         match self {
-            PolicyEngineType::OPA => Ok(Box::new(opa::OPA::new(work_dir.to_path_buf())?)
-                as Box<dyn PolicyEngine + Send + Sync>),
+            PolicyEngineType::OPA => {
+                Ok(Box::new(opa::OPA::new()?) as Box<dyn PolicyEngine + Send + Sync>)
+            }
         }
     }
 }
@@ -39,4 +45,8 @@ pub trait PolicyEngine {
     ) -> Result<String>;
 
     async fn set_policy(&mut self, input: SetPolicyInput) -> Result<()>;
+
+    async fn remove_policy(&mut self, policy_id: String) -> Result<()>;
+
+    async fn list_policy(&self) -> Result<Vec<PolicyDigest>>;
 }
